@@ -15,6 +15,8 @@ import com.microservices.vaccinationcenter.entity.VaccinationCenter;
 import com.microservices.vaccinationcenter.model.Citizen;
 import com.microservices.vaccinationcenter.model.CitizenVaccinationResponse;
 import com.microservices.vaccinationcenter.repository.CenterRepository;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
+
 import java.util.*;
 
 
@@ -28,7 +30,7 @@ public class VaccinationCenterController {
 	@Autowired
 	private RestTemplate restTemplate;
 	
-	@RequestMapping(value="/test")
+	@RequestMapping(value="/test",method=RequestMethod.GET)
 	public ResponseEntity<String> test()
 	{
 		return new ResponseEntity<>("hello",HttpStatus.OK);
@@ -43,6 +45,7 @@ public class VaccinationCenterController {
 		return new ResponseEntity<>(saveCitizen,HttpStatus.OK);
 	}
 	@RequestMapping(value="/view", method=RequestMethod.GET)
+	@HystrixCommand(fallbackMethod ="handleCitizenDownTime")
 	public ResponseEntity<CitizenVaccinationResponse> getAllDataBasedOnCenterId(@RequestParam("id") int id)
 	{
 		
@@ -56,6 +59,14 @@ public class VaccinationCenterController {
 		List listOfCitizens = restTemplate.getForObject("http://localhost:8081/citizen/getbycenterid?id="+id, List.class);
 		citizenVaccinationResponse.setCitizen(listOfCitizens);
 		System.out.println(citizenVaccinationResponse);
+		return new ResponseEntity<CitizenVaccinationResponse>(citizenVaccinationResponse,HttpStatus.OK);
+		
+	}
+	public ResponseEntity<CitizenVaccinationResponse> handleCitizenDownTime(@RequestParam("id") int id)
+	{
+		CitizenVaccinationResponse citizenVaccinationResponse=new CitizenVaccinationResponse();
+		VaccinationCenter center=this.centerRepo.findById(id).get();
+		citizenVaccinationResponse.setCenter(center);
 		return new ResponseEntity<CitizenVaccinationResponse>(citizenVaccinationResponse,HttpStatus.OK);
 		
 	}
